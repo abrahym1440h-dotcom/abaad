@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
   try {
     const q = req.query || {}
     const path = String(q.path || 'shop/mens').replace(/^\/+/, '')
-    if (!/^(shop|promotions|brands)\/[a-z0-9\-~\/]*$/i.test(path) && !/^shop\/[a-z0-9\-~\/]*$/i.test(path)) return res.status(400).json({ error: 'bad path' })
+    if (!/^(shop|brands|promotions)(\/[a-z0-9\-~]+)*$/i.test(path)) return res.status(400).json({ error: 'bad path' })
     const page = Math.max(1, parseInt(q.page || '1', 10) || 1)
     const url = BASE + path + (page > 1 ? `?page=${page}` : '')
     const r = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15', 'accept-language': 'ar-SA,ar;q=0.9', accept: 'text/html' } })
