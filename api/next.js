@@ -38,7 +38,7 @@ module.exports = async (req, res) => {
     if (q.debug) return res.status(200).json({ status: r.status, url, success: j.success, error: j.error, length: md.length, parsed: parse(md).items.length, sample: md.slice(0, 500) })
     if (!r.ok || !j.success) return res.status(502).json({ error: 'firecrawl ' + r.status, detail: j.error || null })
     const { total, items } = parse(md)
-    res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=604800')
+    res.setHeader('Cache-Control', items.length ? 's-maxage=86400, stale-while-revalidate=604800' : 'no-store')
     res.status(200).json({ page, total, items })
   } catch (e) { res.status(500).json({ error: String(e && e.message || e) }) }
 }
