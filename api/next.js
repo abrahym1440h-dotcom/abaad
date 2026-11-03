@@ -28,6 +28,6 @@ module.exports = async (req, res) => {
       out.set(m[2], { id: 'nx-' + m[2].toLowerCase(), title: String(p.title || '').slice(0, 160), price: p.price, old: p.old > p.price ? p.old : 0, img: IMG(m[2]), url: 'https://www.next.sa/ar/style/' + m[1] + '/' + m[2] })
     }
     res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=604800')
-    res.status(200).json({ page, total: data.total || null, items: [...out.values()] })
+    res.status(200).json({ page, total: null, items: [...out.values()] })
   } catch (e) { res.status(500).json({ error: String(e && e.message || e) }) }
 }
