@@ -18,13 +18,36 @@ function parse(md) {
   }
   return { total, items: [...items.values()] }
 }
-module.exports.parse = parse
+
+// ===== حفظ دائم في Vercel Blob (اختياري: يشتغل تلقائياً إذا ربطت مخزن Blob بالمشروع) =====
+const TTL = 14 * 864e5
+const hasBlob = () => !!process.env.BLOB_READ_WRITE_TOKEN
+const bkey = (path, page) => `abaad/next/${path.replace(/[^a-z0-9~-]+/gi, '_')}_p${page}.json`
+async function saved(path, page) {
+  if (!hasBlob()) return null
+  try {
+    const { list } = await import('@vercel/blob')
+    const k = bkey(path, page); const { blobs } = await list({ prefix: k, limit: 1 })
+    if (!blobs.length) return null
+    const j = await (await fetch(blobs[0].url + '?t=' + Date.now())).json()
+    return j && j.items && j.items.length && Date.now() - (j.savedAt || 0) < TTL ? j : null
+  } catch { return null }
+}
+async function save(path, page, data) {
+  if (!hasBlob() || !data.items.length) return
+  try {
+    const { put } = await import('@vercel/blob')
+    await put(bkey(path, page), JSON.stringify({ ...data, savedAt: Date.now() }), { access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json', cacheControlMaxAge: 60 })
+  } catch {}
+}
 
 module.exports = async (req, res) => {
   try {
     const q = req.query || {}
     const path = String(q.path || 'shop/mens').replace(/^\/+/, '')
     if (!/^(shop|brands|promotions)(\/[a-z0-9\-~]+)*$/i.test(path)) return res.status(400).json({ error: 'bad path' })
+    const page0 = Math.max(1, parseInt(q.page || '1', 10) || 1)
+    if (!q.debug && !q.refresh) { const hit = await saved(path, page0); if (hit) { res.setHeader('Cache-Control', 's-maxage=3600'); return res.status(200).json({ page: page0, total: hit.total, items: hit.items, saved: true }) } }
     const key = process.env.FIRECRAWL_API_KEY
     if (!key) return res.status(500).json({ error: 'FIRECRAWL_API_KEY missing' })
     const page = Math.max(1, parseInt(q.page || '1', 10) || 1)
@@ -38,6 +61,7 @@ module.exports = async (req, res) => {
     if (q.debug) return res.status(200).json({ status: r.status, url, success: j.success, error: j.error, length: md.length, parsed: parse(md).items.length, sample: md.slice(0, 500) })
     if (!r.ok || !j.success) return res.status(502).json({ error: 'firecrawl ' + r.status, detail: j.error || null })
     const { total, items } = parse(md)
+    await save(path, page, { total, items })
     res.setHeader('Cache-Control', items.length ? 's-maxage=86400, stale-while-revalidate=604800' : 'no-store')
     res.status(200).json({ page, total, items })
   } catch (e) { res.status(500).json({ error: String(e && e.message || e) }) }
