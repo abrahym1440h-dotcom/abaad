@@ -80,3 +80,5 @@ module.exports = async (req, res) => {
     res.status(200).json({ page, total: list.length, items })
   } catch (e) { res.status(500).json({ error: String(e && e.message || e) }) }
 }
+
+module.exports.helpers = { get, product, allProducts, ent, num }
